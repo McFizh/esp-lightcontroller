@@ -1,0 +1,33 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "${env:IDF_PATH}/components/freertos/include",
+                "${env:IDF_PATH}/components/spi_flash/include",
+                "${env:IDF_PATH}/components/nvs_flash/include",
+                "${env:IDF_PATH}/components/esp8266/include",
+                "${env:IDF_PATH}/components/esp_common/include",
+                "${env:IDF_PATH}/components/esp_event/include",
+                "${env:IDF_PATH}/components/tcpip_adapter/include",
+                "${env:IDF_PATH}/components/heap/include",
+                "${env:IDF_PATH}/components/mdns/include",
+                "${env:IDF_PATH}/components/lwip/include/apps/sntp",
+                "${env:IDF_PATH}/components/lwip/lwip/src/include",
+
+                "${env:IDF_PATH}/components/heap/port/esp8266/include",
+                "${env:IDF_PATH}/components/lwip/port/esp8266/include",
+                "${env:IDF_PATH}/components/freertos/port/esp8266/include",
+                "${env:IDF_PATH}/components/freertos/port/esp8266/include/freertos",
+                "${env:IDF_PATH}/components/freertos/include/freertos/private"
+            ],
+            "defines": [],
+            "compilerPath": "/usr/bin/gcc",
+            "cStandard": "c11",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "clang-x64"
+        }
+    ],
+    "version": 4
+}

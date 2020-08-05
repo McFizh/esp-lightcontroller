@@ -1,0 +1,8 @@
+{
+  "files.associations": {
+    "mdns.h": "c",
+    "esp_netif.h": "c",
+    "socket.h": "c"
+  },
+  "cmake.configureOnOpen": false
+}
