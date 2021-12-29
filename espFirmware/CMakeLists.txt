@@ -13,5 +13,7 @@ configure_file(
   "main/app_config.h"
 )
 
+set(CMAKE_INCLUDE_CURRENT_DIR ON)
+
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 project(controller-fware)

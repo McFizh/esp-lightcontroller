@@ -3,83 +3,70 @@
 
 #include "freertos/FreeRTOS.h"
 
-#include "esp_wifi.h"
-#include "esp_event_loop.h"
-#include "lwip/ip_addr.h"
 #include "freertos/event_groups.h"
+#include "esp_event.h"
+#include "esp_wifi.h"
 #include "mdns.h"
 
-#include "app_config.h"
+#include "../build/main/app_config.h"
 
 #define GOT_IPV4_BIT BIT(0)
 #define GOT_IPV6_BIT BIT(1)
 
 EventGroupHandle_t connection_event_group;
 
-static esp_err_t event_handler(void *ctx, system_event_t *event)
-{
-    /* For accessing reason codes in case of disconnection */
-    system_event_info_t *info = &event->event_info;
-
-    switch(event->event_id) {
-      case SYSTEM_EVENT_STA_START:
-          esp_wifi_connect();
-          break;
-      case SYSTEM_EVENT_STA_CONNECTED:
-          tcpip_adapter_create_ip6_linklocal(TCPIP_ADAPTER_IF_STA);
-          break;
-      case SYSTEM_EVENT_STA_GOT_IP:
-          xEventGroupSetBits(connection_event_group, GOT_IPV4_BIT);
-          break;
-      case SYSTEM_EVENT_AP_STA_GOT_IP6:
-          xEventGroupSetBits(connection_event_group, GOT_IPV6_BIT);
-          break;
-      case SYSTEM_EVENT_STA_DISCONNECTED:
-          printf("Disconnect reason : %d", info->disconnected.reason);
-
-          if (info->disconnected.reason == WIFI_REASON_BASIC_RATE_NOT_SUPPORT) {
-              /*Switch to 802.11 bgn mode */
-              esp_wifi_set_protocol(ESP_IF_WIFI_STA, WIFI_PROTOCOL_11B | WIFI_PROTOCOL_11G | WIFI_PROTOCOL_11N);
-          }
-
-          esp_wifi_connect();
-          xEventGroupClearBits(connection_event_group, GOT_IPV4_BIT | GOT_IPV6_BIT);
-          break;
-      default:
-          break;
-    }
-
-    mdns_handle_system_event(ctx, event);
-    return ESP_OK;
+static void on_got_ip(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
+    printf("Got IP!\n");
+    xEventGroupSetBits(connection_event_group, GOT_IPV4_BIT);
 }
 
-void setup_mdns() {
-  ESP_ERROR_CHECK( mdns_init() );
-  ESP_ERROR_CHECK( mdns_hostname_set("esp-fw") );
-  ESP_ERROR_CHECK( mdns_instance_name_set("Lightshow ESP firmware") );
-  ESP_ERROR_CHECK( mdns_service_add("ESP lightshow", "_lightctrl", "_tcp", 5900, NULL, 0) );
+static void on_wifi_disconnect(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
+    printf("Disconnected!\n");
+    xEventGroupClearBits(connection_event_group, GOT_IPV4_BIT);
+    esp_err_t err = esp_wifi_connect();
+    if (err == ESP_ERR_WIFI_NOT_STARTED) {
+        return;
+    }
+    ESP_ERROR_CHECK(err);
 }
 
 void network_connect() {
-  connection_event_group = xEventGroupCreate();
-  tcpip_adapter_init();
+    connection_event_group = xEventGroupCreate();
 
-  ESP_ERROR_CHECK( esp_event_loop_init(event_handler, NULL) );
+    esp_netif_init();
+    esp_event_loop_create_default();
 
-  wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
-  ESP_ERROR_CHECK( esp_wifi_init(&cfg) );
-  ESP_ERROR_CHECK( esp_wifi_set_storage(WIFI_STORAGE_RAM) );
+    wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+    esp_wifi_init(&cfg);
 
-  wifi_config_t wifi_config = {
-      .sta = {
-          .ssid = wifi_ssid,
-          .password = wifi_key,
-      },
-  };
+    esp_netif_config_t netif_config = ESP_NETIF_DEFAULT_WIFI_STA();
+    esp_netif_t *netif = esp_netif_new(&netif_config);
 
-  ESP_ERROR_CHECK( esp_wifi_set_mode(WIFI_MODE_STA) );
-  ESP_ERROR_CHECK( esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config) );
-  ESP_ERROR_CHECK( esp_wifi_start() );
+    assert(netif);
 
-  setup_mdns();
+    esp_netif_attach_wifi_station(netif);
+    esp_wifi_set_default_wifi_sta_handlers();
+
+    esp_event_handler_register(WIFI_EVENT, WIFI_EVENT_STA_DISCONNECTED, &on_wifi_disconnect, NULL);
+    esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &on_got_ip, NULL);
+
+    esp_wifi_set_storage(WIFI_STORAGE_RAM);
+    esp_wifi_set_mode(WIFI_MODE_STA);
+
+    wifi_config_t wifi_config = {
+        .sta = {
+            .ssid = wifi_ssid,
+            .password = wifi_key,
+        },
+    };
+    esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config);
+
+    esp_wifi_start();
+    esp_wifi_connect();
+
+    // Setup MDNS broadcast
+    ESP_ERROR_CHECK( mdns_init() );
+    ESP_ERROR_CHECK( mdns_hostname_set("esp-fw") );
+    ESP_ERROR_CHECK( mdns_instance_name_set("Lightshow ESP firmware") );
+    ESP_ERROR_CHECK( mdns_service_add("ESP lightshow", "_lightctrl", "_tcp", 5900, NULL, 0) );
 }

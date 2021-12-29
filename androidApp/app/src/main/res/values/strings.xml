@@ -1,0 +1,13 @@
+<resources>
+    <string name="app_name">LightController</string>
+    <string name="title_activity_main">Valo-ohjain</string>
+
+    <!-- Strings used for fragments for navigation -->
+    <string name="first_fragment_label">First Fragment</string>
+    <string name="second_fragment_label">Second Fragment</string>
+
+    <string name="reconnect">Yritä uudelleen</string>
+
+    <string name="init_fragment_searching">Etsitään ohjainta...</string>
+    <string name="hello_second_fragment">Hello second fragment. Arg: %1$s</string>
+</resources>

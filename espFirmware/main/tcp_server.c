@@ -1,17 +1,39 @@
+#include <string.h>
+
 #include "freertos/FreeRTOS.h"
 
 #include "freertos/task.h"
 #include "lwip/sockets.h"
 
+#include "../build/main/app_config.h"
+
+#include "tcp_client_task.h"
+
 int listen_socket;
 
-#define MAX_CLIENTS 3
+static void tcpserver_task(void *);
+
 struct AppClient {
   bool slotFree;
   int socket;
   unsigned char id;
-} appClient[MAX_CLIENTS];
+} appClient[max_clients];
 
+
+/* ***************************************************************
+ * Helper methods
+ * ***************************************************************/
+char *rtrim(char *s) {
+    char* back = s + strlen(s);
+    while(isspace(*--back));
+    *(back+1) = '\0';
+    return s;
+}
+
+
+/* ***************************************************************
+ * Init / main TCP loop methods
+ * ***************************************************************/
 void init_tcp_server() {
   char addr_str[128];
 
@@ -40,41 +62,12 @@ void init_tcp_server() {
   }
 
   //
-  for(int i=0; i<MAX_CLIENTS; i++) {
+  for(int i=0; i<max_clients; i++) {
     appClient[i].slotFree = true;
     appClient[i].id = i;
   }
 
   printf("Socket ready...\n");
-}
-
-static void tcpserver_task(void *pvParameters)
-{
-  struct AppClient *client = (struct AppClient *)pvParameters;
-  char rx_buffer[128];
-
-  printf("(%d) Task created (id: %d)\n", client->socket, client->id);
-
-  for( ;; ) {
-      int len = recv(client->socket, rx_buffer, sizeof(rx_buffer) - 1, 0);
-
-      // Connection terminated
-      if(len == 0) {
-        printf("(%d) Connection terminated\n", client->socket);
-        break;
-      } else if(len == -1) {
-        printf("(%d) Connection failure\n", client->socket);
-        break;
-      }
-
-      rx_buffer[len] = 0;
-      printf("(%d) Received: %d bytes\n", client->socket, len);
-      printf("(%d) %s", client->socket, rx_buffer);
-  }
-
-  close(client->socket);
-  client->slotFree = true;
-  vTaskDelete(NULL);
 }
 
 void run_tcp_loop() {
@@ -95,7 +88,7 @@ void run_tcp_loop() {
     }
 
     freeSlot = 255;
-    for(i=0; i<MAX_CLIENTS; i++) {
+    for(i=0; i<max_clients; i++) {
       if(appClient[i].slotFree) {
         freeSlot=i;
         break;
@@ -112,4 +105,40 @@ void run_tcp_loop() {
       xTaskCreate(&tcpserver_task, "tcp_server_task", 2048, (void*)&appClient[freeSlot], 5, NULL);
     }
   }
+}
+
+/* ***************************************************************
+ * Client loop
+ * ***************************************************************/
+static void tcpserver_task(void *pvParameters)
+{
+  struct AppClient *client = (struct AppClient *)pvParameters;
+  char rx_buffer[128];
+
+  printf("(%d) Task created (id: %d)\n", client->socket, client->id);
+
+  for( ;; ) {
+      int len = recv(client->socket, rx_buffer, sizeof(rx_buffer) - 1, 0);
+
+      // Connection terminated
+      if(len == 0) {
+        printf("(%d) Connection terminated\n", client->socket);
+        break;
+      } else if(len == -1) {
+        printf("(%d) Connection failure\n", client->socket);
+        break;
+      }
+
+      rx_buffer[len] = 0;
+      rtrim(rx_buffer);
+
+      printf("(%d) Received: %d bytes: (%s)\n", client->socket, len, rtrim(rx_buffer) );
+
+      process_client_message(client->socket, rx_buffer );
+  }
+
+  printf("(%d) Task terminated (id: %d)\n", client->socket, client->id);
+  close(client->socket);
+  client->slotFree = true;
+  vTaskDelete(NULL);
 }

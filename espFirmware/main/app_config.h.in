@@ -1,2 +1,3 @@
-#define wifi_ssid "@wifi_ssid@"
-#define wifi_key "@wifi_key@"
+#cmakedefine wifi_ssid "@wifi_ssid@"
+#cmakedefine wifi_key "@wifi_key@"
+#cmakedefine max_clients @max_clients@
