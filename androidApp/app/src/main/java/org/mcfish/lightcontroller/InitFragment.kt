@@ -49,6 +49,7 @@ class InitFragment : Fragment() {
                 AppState.STATE_CONNECTING -> onConnectingState()
                 AppState.STATE_FAILED -> onFailedState()
                 AppState.STATE_CONNECTED -> onConnectedState()
+                AppState.STATE_SEARCHING -> {}
             }
         })
 
