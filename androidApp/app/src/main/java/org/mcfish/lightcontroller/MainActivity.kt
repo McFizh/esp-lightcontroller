@@ -4,31 +4,38 @@ import android.content.Context
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
 import android.os.Bundle
+import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.viewModels
-import kotlinx.android.synthetic.main.activity_main.*
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import org.mcfish.lightcontroller.databinding.ActivityMainBinding
 
 class MainActivity : AppCompatActivity() {
     private lateinit var nsdManager : NsdManager
     private val viewModel: ConnectionViewModel by viewModels()
+    private lateinit var binding: ActivityMainBinding
+    private var isDiscoveryRunning = false;
 
     /* :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
        mDNS service discovery
        :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::  */
-    private val serviceDiscoveryListener = object : NsdManager.ResolveListener {
-        override fun onResolveFailed(p0: NsdServiceInfo?, p1: Int) {
-        }
-
-        override fun onServiceResolved(service: NsdServiceInfo) {
-            viewModel.setControllerFound(service.host.hostAddress, service.port)
-        }
-    }
-
     private val discoveryListener = object : NsdManager.DiscoveryListener {
         override fun onDiscoveryStarted(regType: String) {
+            isDiscoveryRunning = true;
         }
 
         override fun onServiceFound(service: NsdServiceInfo) {
+
+            val serviceDiscoveryListener = object : NsdManager.ResolveListener {
+                override fun onResolveFailed(p0: NsdServiceInfo?, p1: Int) {
+                }
+
+                override fun onServiceResolved(service: NsdServiceInfo) {
+                    viewModel.setControllerFound(service.host.hostAddress, service.port)
+                }
+            }
+
             nsdManager.resolveService(service, serviceDiscoveryListener)
         }
 
@@ -36,13 +43,16 @@ class MainActivity : AppCompatActivity() {
         }
 
         override fun onDiscoveryStopped(serviceType: String) {
+            isDiscoveryRunning = false;
         }
 
         override fun onStartDiscoveryFailed(serviceType: String, errorCode: Int) {
+            isDiscoveryRunning = false;
             nsdManager.stopServiceDiscovery(this)
         }
 
         override fun onStopDiscoveryFailed(serviceType: String, errorCode: Int) {
+            isDiscoveryRunning = false;
             nsdManager.stopServiceDiscovery(this)
         }
     }
@@ -51,10 +61,20 @@ class MainActivity : AppCompatActivity() {
        Lifecycle events
        :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::  */
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Call enableEdgeToEdge first (before super.oncreate) to make sure that screen doesn't
+        // flicker on start.
+        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
 
-        setContentView(R.layout.activity_main)
-        setSupportActionBar(toolbar)
+        binding = ActivityMainBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+        setSupportActionBar(binding.toolbar)
+
+        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { v, insets ->
+            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
+            insets
+        }
     }
 
     override fun onStart() {
@@ -68,7 +88,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onStop() {
-        nsdManager.stopServiceDiscovery(discoveryListener)
+        if(isDiscoveryRunning) {
+            nsdManager.stopServiceDiscovery(discoveryListener)
+            isDiscoveryRunning = false;
+        }
         super.onStop()
     }
 }
