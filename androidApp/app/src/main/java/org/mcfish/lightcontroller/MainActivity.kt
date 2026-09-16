@@ -1,9 +1,10 @@
 package org.mcfish.lightcontroller
 
-import android.content.Context
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
 import android.os.Bundle
+import android.os.Build
+import android.os.ext.SdkExtensions
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.viewModels
@@ -12,17 +13,17 @@ import androidx.core.view.WindowInsetsCompat
 import org.mcfish.lightcontroller.databinding.ActivityMainBinding
 
 class MainActivity : AppCompatActivity() {
-    private lateinit var nsdManager : NsdManager
+    private lateinit var nsdManager: NsdManager
     private val viewModel: ConnectionViewModel by viewModels()
     private lateinit var binding: ActivityMainBinding
-    private var isDiscoveryRunning = false;
+    private var isDiscoveryRunning = false
 
     /* :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
        mDNS service discovery
        :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::  */
     private val discoveryListener = object : NsdManager.DiscoveryListener {
         override fun onDiscoveryStarted(regType: String) {
-            isDiscoveryRunning = true;
+            isDiscoveryRunning = true
         }
 
         override fun onServiceFound(service: NsdServiceInfo) {
@@ -32,10 +33,25 @@ class MainActivity : AppCompatActivity() {
                 }
 
                 override fun onServiceResolved(service: NsdServiceInfo) {
-                    viewModel.setControllerFound(service.host.hostAddress, service.port)
+                    val host =
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && SdkExtensions.getExtensionVersion(
+                                Build.VERSION_CODES.TIRAMISU
+                            ) >= 7
+                        ) {
+                            service.hostAddresses.firstOrNull()
+                        } else {
+                            @Suppress("DEPRECATION")
+                            service.host
+                        }
+                    val hostAddress = host?.hostAddress
+                    if (hostAddress != null) {
+                        viewModel.setControllerFound(hostAddress, service.port)
+                    }
                 }
             }
 
+            // Fixme: This should be fixed soon(ish)
+            @Suppress("DEPRECATION")
             nsdManager.resolveService(service, serviceDiscoveryListener)
         }
 
@@ -43,16 +59,16 @@ class MainActivity : AppCompatActivity() {
         }
 
         override fun onDiscoveryStopped(serviceType: String) {
-            isDiscoveryRunning = false;
+            isDiscoveryRunning = false
         }
 
         override fun onStartDiscoveryFailed(serviceType: String, errorCode: Int) {
-            isDiscoveryRunning = false;
+            isDiscoveryRunning = false
             nsdManager.stopServiceDiscovery(this)
         }
 
         override fun onStopDiscoveryFailed(serviceType: String, errorCode: Int) {
-            isDiscoveryRunning = false;
+            isDiscoveryRunning = false
             nsdManager.stopServiceDiscovery(this)
         }
     }
@@ -79,7 +95,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onStart() {
         super.onStart()
-        nsdManager = getSystemService(Context.NSD_SERVICE) as NsdManager
+        nsdManager = getSystemService(NSD_SERVICE) as NsdManager
         nsdManager.discoverServices(
             "_lightctrl._tcp",
             NsdManager.PROTOCOL_DNS_SD,
@@ -88,9 +104,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onStop() {
-        if(isDiscoveryRunning) {
+        if (isDiscoveryRunning) {
             nsdManager.stopServiceDiscovery(discoveryListener)
-            isDiscoveryRunning = false;
+            isDiscoveryRunning = false
         }
         super.onStop()
     }

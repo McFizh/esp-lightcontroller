@@ -1,0 +1,1 @@
+This is a test app, that advertises _esp._tcp service on port 8000 and also looks for lightcontrollers from network using mDns query. If it finds any, it will connect 4 tcp clients to it

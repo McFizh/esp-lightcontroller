@@ -19,8 +19,9 @@ class InitFragment : Fragment() {
     private val binding get() = _binding!!
 
     override fun onCreateView(
-        inflater: LayoutInflater, container: ViewGroup?,
-        savedInstanceState: Bundle?
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?,
     ): View {
         _binding = FragmentInitBinding.inflate(inflater, container, false)
         return binding.root
@@ -48,14 +49,17 @@ class InitFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         // Handle state changes
-        viewModel.connectionState.observe(viewLifecycleOwner, Observer { state ->
-            when(state) {
-                AppState.STATE_CONNECTING -> onConnectingState()
-                AppState.STATE_FAILED -> onFailedState()
-                AppState.STATE_CONNECTED -> onConnectedState()
-                AppState.STATE_SEARCHING -> {}
-            }
-        })
+        viewModel.connectionState.observe(
+            viewLifecycleOwner,
+            Observer { state ->
+                when (state) {
+                    AppState.STATE_CONNECTING -> onConnectingState()
+                    AppState.STATE_FAILED -> onFailedState()
+                    AppState.STATE_CONNECTED -> onConnectedState()
+                    AppState.STATE_SEARCHING -> {}
+                }
+            },
+        )
 
         // Reconnect button action
         binding.reconnButton.setOnClickListener {
@@ -69,13 +73,5 @@ class InitFragment : Fragment() {
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
-    }
-
-    override fun onStart() {
-        super.onStart()
-    }
-
-    override fun onStop() {
-        super.onStop()
     }
 }
