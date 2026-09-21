@@ -1,0 +1,3 @@
+\.[a-z]*_bak
+controllerBoard/.history
+controllerBoard/*.lck
