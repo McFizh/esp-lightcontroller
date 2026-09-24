@@ -6,8 +6,10 @@
     <string name="first_fragment_label">First Fragment</string>
     <string name="second_fragment_label">Second Fragment</string>
 
+    <string name="connecting">Yhdistetään...</string>
+    <string name="connection_failed">Ohjaimeen ei saatu yhteyttä</string>
     <string name="reconnect">Yritä uudelleen</string>
 
+    <string name="controller_found">Ohjain löydetty osoitteesta:\n%1$s\n\n</string>
     <string name="init_fragment_searching">Etsitään ohjainta...</string>
-    <string name="hello_second_fragment">Hello second fragment. Arg: %1$s</string>
 </resources>
