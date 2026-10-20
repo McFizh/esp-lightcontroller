@@ -1,2 +1,7 @@
-void network_connect();
-extern EventGroupHandle_t connection_event_group;
+#pragma once
+
+#include "esp_check.h"
+
+#define SERVER_PORT 5900
+
+esp_err_t network_connect(void);
