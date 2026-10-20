@@ -1,3 +1,4 @@
 \.[a-z]*_bak
+.vscode/
 controllerBoard/.history
 controllerBoard/*.lck

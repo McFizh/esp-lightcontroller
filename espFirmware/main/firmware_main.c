@@ -1,58 +1,43 @@
-#include <stdio.h>
-
-#include "freertos/FreeRTOS.h"
-
-#include "nvs_flash.h"
-#include "freertos/event_groups.h"
-#include "driver/ledc.h"
-
 #include "connection.h"
 #include "tcp_server.h"
+#include "led_driver.h"
 
-#define GOT_IPV4_BIT BIT(0)
-#define GOT_IPV6_BIT BIT(1)
-#define CONNECTED_BITS (GOT_IPV4_BIT)
+#include "freertos/FreeRTOS.h"
+#include "freertos/event_groups.h"
 
-void app_main()
+#include "nvs_flash.h"
+#include "driver/gpio.h"
+
+#define STATUS_LED_GPIO GPIO_NUM_19
+
+static void error_loop(void)
 {
-  ESP_ERROR_CHECK( nvs_flash_init() );
+    while (1)
+    {
+        gpio_set_level(STATUS_LED_GPIO, 1);
+        vTaskDelay(pdMS_TO_TICKS(500));
+        gpio_set_level(STATUS_LED_GPIO, 0);
+        vTaskDelay(pdMS_TO_TICKS(500));
+    }
+}
 
-  network_connect();
+void app_main(void)
+{
+    // Initialize status led & led driver
+    gpio_reset_pin(STATUS_LED_GPIO);
+    gpio_set_direction(STATUS_LED_GPIO, GPIO_MODE_OUTPUT);
 
-  // Wait for network connectivity
-  xEventGroupWaitBits(connection_event_group, CONNECTED_BITS, false, true, portMAX_DELAY);
+    if (init_led_driver() != ESP_OK)
+        error_loop();
 
-  // Initialize ledc
-  ledc_timer_config_t ledc_timer = {
-      .duty_resolution = LEDC_TIMER_13_BIT,
-      .freq_hz = 5000,
-      .speed_mode = LEDC_HIGH_SPEED_MODE,
-      .timer_num = LEDC_TIMER_0,
-      .clk_cfg = LEDC_AUTO_CLK,
-  };
-  ledc_timer_config(&ledc_timer);
+    // Start network, and enter fail loop, if net init fails (board is useless without network)
+    ESP_ERROR_CHECK(nvs_flash_init());
+    if (network_connect() != ESP_OK)
+        error_loop();
 
-  /*
-  ledc_timer.speed_mode = LEDC_HIGH_SPEED_MODE;
-  ledc_timer.timer_num = LEDC_TIMER_1;
-  ledc_timer_config(&ledc_timer);
-  */
+    // Init TCP server & start tcp task
+    if (init_tcp_server() != ESP_OK)
+        error_loop();
 
-  ledc_channel_config_t ledc_channel[1] = {
-      {
-          .speed_mode = LEDC_HIGH_SPEED_MODE,
-          .channel    = LEDC_CHANNEL_0,
-          .timer_sel  = LEDC_TIMER_0,
-          .intr_type  = LEDC_INTR_DISABLE,
-          .gpio_num   = 18,
-          .duty       = 4095,       // 50% duty: (2^13 - 1) * 0.5)
-          .hpoint     = 0
-      }
-  };
-
-  ledc_channel_config(&ledc_channel[0]);
-
-  // Init TCP server
-  init_tcp_server();
-  run_tcp_loop();
+    run_tcp_loop();
 }

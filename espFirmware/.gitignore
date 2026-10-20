@@ -3,4 +3,5 @@ managed_components/
 main/app_config.h
 .env
 .vscode
+sdkconfig
 sdkconfig.old
